@@ -29,6 +29,8 @@
     <ClInclude Include="particle_beam.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="explosion.h" />
+    <ClInclude Include="quadtree.h" />
+    <ClInclude Include="point2D.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">

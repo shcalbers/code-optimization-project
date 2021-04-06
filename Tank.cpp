@@ -66,7 +66,7 @@ void Tank::Deactivate()
 }
 
 //Remove health
-bool Tank::hit(int hit_value)
+bool Tank::Hit(int hit_value)
 {
     health -= hit_value;
 
@@ -87,7 +87,7 @@ void Tank::Draw(Surface* screen)
     tank_sprite->Draw(screen, (int)position.x - 14, (int)position.y - 18);
 }
 
-int Tank::CompareHealth(const Tank& other) const
+int Tank::Compare_Health(const Tank& other) const
 {
     return ((health == other.health) ? 0 : ((health > other.health) ? 1 : -1));
 }

@@ -132,7 +132,9 @@
     <ClInclude Include="explosion.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="particle_beam.h" />
+    <ClInclude Include="point2D.h" />
     <ClInclude Include="precomp.h" />
+    <ClInclude Include="quadtree.h" />
     <ClInclude Include="rocket.h" />
     <ClInclude Include="smoke.h" />
     <ClInclude Include="surface.h" />

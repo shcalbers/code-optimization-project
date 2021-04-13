@@ -41,4 +41,9 @@ bool Rocket::Intersects(vec2 position_other, float radius_other) const
     }
 }
 
+void Rocket::Deactivate() 
+{
+    active = false;
+}
+
 } // namespace Tmpl8

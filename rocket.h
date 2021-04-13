@@ -14,6 +14,15 @@ class Rocket
 
     bool Intersects(vec2 position_other, float radius_other) const;
 
+    vec2 GetPosition() const { return position; }
+    float GetCollisionRadius() const { return collision_radius; }
+
+    bool IsActive() const { return active; }
+    void Deactivate();
+
+    allignments GetAllignment() const { return allignment; }
+
+  private:
     vec2 position;
     vec2 speed;
 

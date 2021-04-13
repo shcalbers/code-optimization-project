@@ -71,7 +71,7 @@ void Game::Init()
     {
         Tank* tank = new Tank(start_blue_x + ((i % max_rows) * spacing), start_blue_y + ((i / max_rows) * spacing), BLUE, &tank_blue, &smoke, 1200, 600, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
-        tanks_tree.tryInsertAt(tank->Get_Position(), tank);
+        tanks_tree.tryInsertAt(tank->GetPosition(), tank);
     }
 
     //Spawn red tanks
@@ -79,7 +79,7 @@ void Game::Init()
     {
         Tank* tank = new Tank(start_red_x + ((i % max_rows) * spacing), start_red_y + ((i / max_rows) * spacing), RED, &tank_red, &smoke, 80, 80, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
-        tanks_tree.tryInsertAt(tank->Get_Position(), tank);
+        tanks_tree.tryInsertAt(tank->GetPosition(), tank);
 
     }
 
@@ -106,9 +106,9 @@ Tank* Game::Find_Closest_Enemy(Tank* current_tank)
 
     for (int i = 0; i < tanks.size(); i++)
     {
-        if (tanks.at(i)->Get_Allignment() != current_tank->Get_Allignment() && tanks.at(i)->Get_Active())
+        if (tanks.at(i)->GetAllignment() != current_tank->GetAllignment() && tanks.at(i)->IsActive())
         {
-            float sqrDist = fabsf((tanks.at(i)->Get_Position() - current_tank->Get_Position()).sqrLength());
+            float sqrDist = fabsf((tanks.at(i)->GetPosition() - current_tank->GetPosition()).sqrLength());
             if (sqrDist < closest_distance)
             {
                 closest_distance = sqrDist;
@@ -132,36 +132,38 @@ void Game::Update(float deltaTime)
     //Update tanks
     for (Tank* tank : tanks)
     {
-        if (tank->Get_Active())
+        if (tank->IsActive())
         {
             //Check tank collision and nudge tanks away from each other
-            tanks_tree.forEachWithinBounds({tank->Get_Position() - vec2{tank->Get_Collision_Radius(), tank->Get_Collision_Radius()}, tank->Get_Position() + vec2{tank->Get_Collision_Radius(), tank->Get_Collision_Radius()}}, [&](const Data<Tank*>& oTank) {
+            tanks_tree.forEachWithinBounds({tank->GetPosition() - vec2{tank->GetCollisionRadius(), tank->GetCollisionRadius()}, tank->GetPosition() + vec2{tank->GetCollisionRadius(), tank->GetCollisionRadius()}}, [&](const Data<Tank*>& oTank) {
                 if (tank == oTank.data) return;
 
-                vec2 dir = tank->Get_Position() - oTank.data->Get_Position();
+                vec2 dir = tank->GetPosition() - oTank.data->GetPosition();
                 float dirSquaredLen = dir.sqrLength();
 
-                float colSquaredLen = (tank->Get_Collision_Radius() * tank->Get_Collision_Radius()) + (oTank.data->Get_Collision_Radius() * oTank.data->Get_Collision_Radius());
+                float colSquaredLen = (tank->GetCollisionRadius() * tank->GetCollisionRadius()) + (oTank.data->GetCollisionRadius() * oTank.data->GetCollisionRadius());
 
                 if (dirSquaredLen < colSquaredLen)
                 {
+                    tanks_tree.tryRemoveAt(tank->GetPosition());
                     tank->Push(dir.normalized(), 1.f);
+                    tanks_tree.tryInsertAt(tank->GetPosition(), tank);
                 }
             });
 
             //Move tanks according to speed and nudges (see above) also reload
-            tanks_tree.tryRemoveAt(tank->Get_Position());
+            tanks_tree.tryRemoveAt(tank->GetPosition());
             tank->Tick();
-            tanks_tree.tryInsertAt(tank->Get_Position(), tank);
+            tanks_tree.tryInsertAt(tank->GetPosition(), tank);
 
             //Shoot at closest target if reloaded
-            if (tank->Rocket_Reloaded())
+            if (tank->RocketReloaded())
             {
                 Tank* target = Find_Closest_Enemy(tank);
 
-                rockets.push_back(Rocket(tank->Get_Position(), (target->Get_Position() - tank->Get_Position()).normalized() * 3, rocket_radius, tank->Get_Allignment(), ((tank->Get_Allignment() == RED) ? &rocket_red : &rocket_blue)));
+                rockets.push_back(Rocket(tank->GetPosition(), (target->GetPosition() - tank->GetPosition()).normalized() * 3, rocket_radius, tank->GetAllignment(), ((tank->GetAllignment() == RED) ? &rocket_red : &rocket_blue)));
 
-                tank->Reload_Rocket();
+                tank->ReloadRocket();
             }
         }
     }
@@ -177,24 +179,24 @@ void Game::Update(float deltaTime)
     {
         rocket.Tick();
 
-        tanks_tree.forEachWithinBounds({rocket.position - vec2{rocket.collision_radius, rocket.collision_radius}, rocket.position + vec2{rocket.collision_radius, rocket.collision_radius}}, [&](const Data<Tank*> tank) {
-            if (tank.data->Get_Active() && (tank.data->Get_Allignment() != rocket.allignment) && rocket.Intersects(tank.data->Get_Position(), tank.data->Get_Collision_Radius()))
+        tanks_tree.forEachWithinBounds({rocket.GetPosition() - vec2{rocket.GetCollisionRadius(), rocket.GetCollisionRadius()}, rocket.GetPosition() + vec2{rocket.GetCollisionRadius(), rocket.GetCollisionRadius()}}, [&](const Data<Tank*> tank) {
+            if (tank.data->IsActive() && (tank.data->GetAllignment() != rocket.GetAllignment()) && rocket.Intersects(tank.data->GetPosition(), tank.data->GetCollisionRadius()))
             {
-                explosions.push_back(Explosion(&explosion, tank.data->Get_Position()));
+                explosions.push_back(Explosion(&explosion, tank.data->GetPosition()));
 
                 if (tank.data->Hit(ROCKET_HIT_VALUE))
                 {
-                    smokes.push_back(Smoke(smoke, tank.data->Get_Position() - vec2(0, 48)));
+                    smokes.push_back(Smoke(smoke, tank.data->GetPosition() - vec2(0, 48)));
                 }
 
-                rocket.active = false;
+                rocket.Deactivate();
                 return;
             }
         });
     }
 
     //Remove exploded rockets with remove erase idiom
-    rockets.erase(std::remove_if(rockets.begin(), rockets.end(), [](const Rocket& rocket) { return !rocket.active; }), rockets.end());
+    rockets.erase(std::remove_if(rockets.begin(), rockets.end(), [](const Rocket& rocket) { return !rocket.IsActive(); }), rockets.end());
 
     //Update particle beams
     for (Particle_beam& particle_beam : particle_beams)
@@ -203,11 +205,11 @@ void Game::Update(float deltaTime)
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
         tanks_tree.forEachWithinBounds({particle_beam.rectangle.min, particle_beam.rectangle.max}, [&](const Data<Tank*> tank) {
-            if (tank.data->Get_Active() && particle_beam.rectangle.intersectsCircle(tank.data->Get_Position(), tank.data->Get_Collision_Radius()))
+            if (tank.data->IsActive() && particle_beam.rectangle.intersectsCircle(tank.data->GetPosition(), tank.data->GetCollisionRadius()))
             {
                 if (tank.data->Hit(particle_beam.damage))
                 {
-                    smokes.push_back(Smoke(smoke, tank.data->Get_Position() - vec2(0, 48)));
+                    smokes.push_back(Smoke(smoke, tank.data->GetPosition() - vec2(0, 48)));
                 }
             }
         });
@@ -235,7 +237,7 @@ void Game::Draw()
     {
         tanks.at(i)->Draw(screen);
 
-        vec2 tPos = tanks.at(i)->Get_Position();
+        vec2 tPos = tanks.at(i)->GetPosition();
         // tread marks
         if ((tPos.x >= 0) && (tPos.x < SCRWIDTH) && (tPos.y >= 0) && (tPos.y < SCRHEIGHT))
             background.GetBuffer()[(int)tPos.x + (int)tPos.y * SCRWIDTH] = SubBlend(background.GetBuffer()[(int)tPos.x + (int)tPos.y * SCRWIDTH], 0x808080);
@@ -278,7 +280,7 @@ void Game::Draw()
             int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
             screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->Get_Health() / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->GetHealth() / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
         }
     }
 }
@@ -300,7 +302,7 @@ void Tmpl8::Game::Insertion_Sort_Tanks_Health(const std::vector<Tank*>& original
         {
             const Tank* current_checking_tank = sorted_tanks.at(s);
 
-            if ((current_checking_tank->Compare_Health(*current_tank) <= 0))
+            if ((current_checking_tank->CompareHealth(*current_tank) <= 0))
             {
                 sorted_tanks.insert(1 + sorted_tanks.begin() + s, current_tank);
                 break;

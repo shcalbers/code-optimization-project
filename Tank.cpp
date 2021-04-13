@@ -55,7 +55,7 @@ void Tank::Tick()
 }
 
 //Start reloading timer
-void Tank::Reload_Rocket()
+void Tank::ReloadRocket()
 {
     reloaded = false, reload_time = 200.0f;
 }
@@ -87,7 +87,7 @@ void Tank::Draw(Surface* screen)
     tank_sprite->Draw(screen, (int)position.x - 14, (int)position.y - 18);
 }
 
-int Tank::Compare_Health(const Tank& other) const
+int Tank::CompareHealth(const Tank& other) const
 {
     return ((health == other.health) ? 0 : ((health > other.health) ? 1 : -1));
 }

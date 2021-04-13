@@ -19,21 +19,21 @@ class Tank
 
     void Tick();
 
-    vec2 Get_Position() const { return position; }
-    float Get_Collision_Radius() const { return collision_radius; }
-    int Get_Health() const { return health; }
-    bool Get_Active() const { return active; }
-    bool Rocket_Reloaded() const { return reloaded; }
-    allignments Get_Allignment() const { return allignment; }
+    vec2 GetPosition() const { return position; }
+    float GetCollisionRadius() const { return collision_radius; }
+    int GetHealth() const { return health; }
+    bool IsActive() const { return active; }
+    bool RocketReloaded() const { return reloaded; }
+    allignments GetAllignment() const { return allignment; }
 
-    void Reload_Rocket();
+    void ReloadRocket();
 
     void Deactivate();
     bool Hit(int hit_value);
 
     void Draw(Surface* screen);
 
-    int Compare_Health(const Tank& other) const;
+    int CompareHealth(const Tank& other) const;
 
     void Push(vec2 direction, float magnitude);
 

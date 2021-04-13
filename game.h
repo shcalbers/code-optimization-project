@@ -47,7 +47,7 @@ class Game
     Surface* screen;
 
     vector<Tank*> tanks;
-    vector<Rocket> rockets;
+    list<Rocket> rockets;
     vector<Smoke> smokes;
     vector<Explosion> explosions;
     vector<Particle_beam> particle_beams;
@@ -57,7 +57,7 @@ class Game
 
     bool lock_update = false;
 
-    QuadTree<Tank*> tanks_tree = QuadTree<Tank*>(nullptr, {}, 0);
+    QuadTreeNode<Tank*> tanks_tree = QuadTreeNode<Tank*>{{{0, 0}, {SCRWIDTH, SCRHEIGHT}}, 4};
 };
 
 }; // namespace Tmpl8

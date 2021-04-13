@@ -66,14 +66,12 @@ void Game::Init()
 
     float spacing = 15.0f;
 
-    vector<QuadTreeNodeData<Tank*>> tanks_tree_data = vector<QuadTreeNodeData<Tank*>>(NUM_TANKS_BLUE + NUM_TANKS_RED);
-
     //Spawn blue tanks
     for (int i = 0; i < NUM_TANKS_BLUE; i++)
     {
         Tank* tank = new Tank(start_blue_x + ((i % max_rows) * spacing), start_blue_y + ((i / max_rows) * spacing), BLUE, &tank_blue, &smoke, 1200, 600, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
-        tanks_tree_data.push_back(QuadTreeNodeData<Tank*>{tank->Get_Position(), tank});
+        tanks_tree.tryInsertAt(tank->Get_Position(), tank);
     }
 
     //Spawn red tanks
@@ -81,15 +79,13 @@ void Game::Init()
     {
         Tank* tank = new Tank(start_red_x + ((i % max_rows) * spacing), start_red_y + ((i / max_rows) * spacing), RED, &tank_red, &smoke, 80, 80, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
-        tanks_tree_data.push_back(QuadTreeNodeData<Tank*>{tank->Get_Position(), tank});
+        tanks_tree.tryInsertAt(tank->Get_Position(), tank);
 
     }
 
     particle_beams.push_back(Particle_beam(vec2(SCRWIDTH / 2, SCRHEIGHT / 2), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
     particle_beams.push_back(Particle_beam(vec2(80, 80), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
     particle_beams.push_back(Particle_beam(vec2(1200, 600), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
-
-    tanks_tree = QuadTree<Tank*>(tanks_tree_data.data(), {{0, 0}, {SCRWIDTH, SCRHEIGHT}}, 4);
 }
 
 // -----------------------------------------------------------
@@ -139,23 +135,24 @@ void Game::Update(float deltaTime)
         if (tank->Get_Active())
         {
             //Check tank collision and nudge tanks away from each other
-            for (Tank* oTank : tanks)
-            {
-                if (tank == oTank) continue;
+            tanks_tree.forEachWithinBounds({tank->Get_Position() - vec2{tank->Get_Collision_Radius(), tank->Get_Collision_Radius()}, tank->Get_Position() + vec2{tank->Get_Collision_Radius(), tank->Get_Collision_Radius()}}, [&](const Data<Tank*>& oTank) {
+                if (tank == oTank.data) return;
 
-                vec2 dir = tank->Get_Position() - oTank->Get_Position();
+                vec2 dir = tank->Get_Position() - oTank.data->Get_Position();
                 float dirSquaredLen = dir.sqrLength();
 
-                float colSquaredLen = (tank->Get_Collision_Radius() * tank->Get_Collision_Radius()) + (oTank->Get_Collision_Radius() * oTank->Get_Collision_Radius());
+                float colSquaredLen = (tank->Get_Collision_Radius() * tank->Get_Collision_Radius()) + (oTank.data->Get_Collision_Radius() * oTank.data->Get_Collision_Radius());
 
                 if (dirSquaredLen < colSquaredLen)
                 {
                     tank->Push(dir.normalized(), 1.f);
                 }
-            }
+            });
 
             //Move tanks according to speed and nudges (see above) also reload
+            tanks_tree.tryRemoveAt(tank->Get_Position());
             tank->Tick();
+            tanks_tree.tryInsertAt(tank->Get_Position(), tank);
 
             //Shoot at closest target if reloaded
             if (tank->Rocket_Reloaded())
@@ -180,22 +177,20 @@ void Game::Update(float deltaTime)
     {
         rocket.Tick();
 
-        //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-        for (Tank* tank : tanks)
-        {
-            if (tank->Get_Active() && (tank->Get_Allignment() != rocket.allignment) && rocket.Intersects(tank->Get_Position(), tank->Get_Collision_Radius()))
+        tanks_tree.forEachWithinBounds({rocket.position - vec2{rocket.collision_radius, rocket.collision_radius}, rocket.position + vec2{rocket.collision_radius, rocket.collision_radius}}, [&](const Data<Tank*> tank) {
+            if (tank.data->Get_Active() && (tank.data->Get_Allignment() != rocket.allignment) && rocket.Intersects(tank.data->Get_Position(), tank.data->Get_Collision_Radius()))
             {
-                explosions.push_back(Explosion(&explosion, tank->Get_Position()));
+                explosions.push_back(Explosion(&explosion, tank.data->Get_Position()));
 
-                if (tank->Hit(ROCKET_HIT_VALUE))
+                if (tank.data->Hit(ROCKET_HIT_VALUE))
                 {
-                    smokes.push_back(Smoke(smoke, tank->Get_Position() - vec2(0, 48)));
+                    smokes.push_back(Smoke(smoke, tank.data->Get_Position() - vec2(0, 48)));
                 }
 
                 rocket.active = false;
-                break;
+                return;
             }
-        }
+        });
     }
 
     //Remove exploded rockets with remove erase idiom
@@ -207,16 +202,15 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        for (Tank* tank : tanks)
-        {
-            if (tank->Get_Active() && particle_beam.rectangle.intersectsCircle(tank->Get_Position(), tank->Get_Collision_Radius()))
+        tanks_tree.forEachWithinBounds({particle_beam.rectangle.min, particle_beam.rectangle.max}, [&](const Data<Tank*> tank) {
+            if (tank.data->Get_Active() && particle_beam.rectangle.intersectsCircle(tank.data->Get_Position(), tank.data->Get_Collision_Radius()))
             {
-                if (tank->Hit(particle_beam.damage))
+                if (tank.data->Hit(particle_beam.damage))
                 {
-                    smokes.push_back(Smoke(smoke, tank->Get_Position() - vec2(0, 48)));
+                    smokes.push_back(Smoke(smoke, tank.data->Get_Position() - vec2(0, 48)));
                 }
             }
-        }
+        });
     }
 
     //Update explosion sprites and remove when done with remove erase idiom

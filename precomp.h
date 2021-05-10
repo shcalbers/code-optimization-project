@@ -79,7 +79,7 @@ using namespace std;
 
 using namespace Tmpl8;
 
-#include "ThreadPool.h"
+#include "thread_pool.h"
 
 #include "tank.h"
 #include "rocket.h"

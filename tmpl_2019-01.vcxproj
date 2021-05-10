@@ -123,7 +123,7 @@
     <ClCompile Include="rocket.cpp" />
     <ClCompile Include="smoke.cpp" />
     <ClCompile Include="surface.cpp" />
-    <ClCompile Include="Tank.cpp" />
+    <ClCompile Include="tank.cpp" />
     <ClCompile Include="template.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -135,10 +135,11 @@
     <ClInclude Include="precomp.h" />
     <ClInclude Include="rocket.h" />
     <ClInclude Include="smoke.h" />
+    <ClInclude Include="spatial_hasher.h" />
     <ClInclude Include="surface.h" />
-    <ClInclude Include="Tank.h" />
+    <ClInclude Include="tank.h" />
     <ClInclude Include="template.h" />
-    <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="thread_pool.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="_readme.txt" />

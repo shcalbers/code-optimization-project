@@ -8,11 +8,11 @@
     <ClCompile Include="template.cpp">
       <Filter>template code</Filter>
     </ClCompile>
-    <ClCompile Include="Tank.cpp" />
     <ClCompile Include="rocket.cpp" />
     <ClCompile Include="smoke.cpp" />
     <ClCompile Include="particle_beam.cpp" />
     <ClCompile Include="explosion.cpp" />
+    <ClCompile Include="tank.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
@@ -23,12 +23,13 @@
       <Filter>template code</Filter>
     </ClInclude>
     <ClInclude Include="precomp.h" />
-    <ClInclude Include="Tank.h" />
     <ClInclude Include="rocket.h" />
     <ClInclude Include="smoke.h" />
     <ClInclude Include="particle_beam.h" />
-    <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="explosion.h" />
+    <ClInclude Include="spatial_hasher.h" />
+    <ClInclude Include="tank.h" />
+    <ClInclude Include="thread_pool.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">

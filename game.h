@@ -1,5 +1,7 @@
 #pragma once
 
+#include "spatial_hasher.h"
+
 namespace Tmpl8
 {
 //forward declarations
@@ -17,10 +19,10 @@ class Game
     void Update(float deltaTime);
     void Draw();
     void Tick(float deltaTime);
-    void insertion_sort_tanks_health(const std::vector<Tank>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end);
+    void insertion_sort_tanks_health(const std::vector<Tank*>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end);
     void MeasurePerformance();
 
-    Tank& FindClosestEnemy(Tank& current_tank);
+    Tank* FindClosestEnemy(Tank* current_tank);
 
     void MouseUp(int button)
     { /* implement if you want to detect mouse button presses */
@@ -45,7 +47,9 @@ class Game
   private:
     Surface* screen;
 
-    vector<Tank> tanks;
+    vector<Tank*> tanks;
+    SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {SCRWIDTH, SCRHEIGHT}, 25);
+
     vector<Rocket> rockets;
     vector<Smoke> smokes;
     vector<Explosion> explosions;

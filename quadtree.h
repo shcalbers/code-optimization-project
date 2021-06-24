@@ -110,19 +110,19 @@ template <typename T>
 template <typename Callable>
 void QuadTreeNode<T>::forEachWithinBounds(BoundingBox boundary, Callable& callable) const
 {
-    if (!intersects(this->boundary, boundary))
-        return;
-
-    for (const auto& point : this->points)
-        if (contains(boundary, point.position)) callable(point);
-
-    if (this->isSubdivided())
+    if (intersects(this->boundary, boundary))
     {
-        for (const auto& row : this->quadrants)
+        for (const auto& point : this->points)
+            if (contains(boundary, point.position)) callable(point);
+
+        if (this->isSubdivided())
         {
-            for (const auto& quadrant : row)
+            for (const auto& row : this->quadrants)
             {
-                quadrant->forEachWithinBounds(boundary, callable);
+                for (const auto& quadrant : row)
+                {
+                    quadrant->forEachWithinBounds(boundary, callable);
+                }
             }
         }
     }

@@ -145,9 +145,7 @@ void Game::Update(float deltaTime)
 
                 if (dirSquaredLen < colSquaredLen)
                 {
-                    tanks_tree.tryRemoveAt(tank->GetPosition());
                     tank->Push(dir.normalized(), 1.f);
-                    tanks_tree.tryInsertAt(tank->GetPosition(), tank);
                 }
             });
 

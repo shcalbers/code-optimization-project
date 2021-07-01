@@ -6,6 +6,7 @@
 #include <array>
 #include <optional>
 #include <list>
+#include <iostream>
 
 template <typename T>
 struct Data
@@ -47,6 +48,10 @@ private:
 
     bool isSubdivided() const;
     void subdivide();
+
+    template <typename Callable>
+    void forEachWithinBounds(BoundingBox boundary, Callable& callable, std::atomic<int>&) const;
+
 
 };
 
@@ -110,21 +115,39 @@ template <typename T>
 template <typename Callable>
 void QuadTreeNode<T>::forEachWithinBounds(BoundingBox boundary, Callable& callable) const
 {
+    std::atomic<int> a = 0;
+    this->forEachWithinBounds(boundary, callable, a);
+
+    //while (a > 0)
+    //    ;
+}
+
+template <typename T>
+template <typename Callable>
+void QuadTreeNode<T>::forEachWithinBounds(BoundingBox boundary, Callable& callable, std::atomic<int>& a) const
+{
     if (intersects(this->boundary, boundary))
     {
         for (const auto& point : this->points)
             if (contains(boundary, point.position)) callable(point);
+
+        a++;
+        auto task = ThreadPool::getInstance().enqueue([&]() -> void {
+            a--;
+        });
 
         if (this->isSubdivided())
         {
             for (const auto& row : this->quadrants)
             {
                 for (const auto& quadrant : row)
-                {
-                    quadrant->forEachWithinBounds(boundary, callable);
+                {       
+                    quadrant->forEachWithinBounds(boundary, callable, a);
                 }
             }
         }
+
+        task.wait();
     }
 }
 

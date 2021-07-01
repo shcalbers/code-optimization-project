@@ -1,4 +1,5 @@
 #pragma once
+#include <thread>
 
 namespace Tmpl8
 {
@@ -22,19 +23,11 @@ class Worker
 class ThreadPool
 {
   public:
-    ThreadPool(size_t numThreads) : stop(false)
-    {
-        for (size_t i = 0; i < numThreads; ++i)
-            workers.push_back(std::thread(Worker(*this)));
-    }
 
-    ~ThreadPool()
+    static ThreadPool& getInstance() noexcept
     {
-        stop = true; // stop all threads
-        condition.notify_all();
-
-        for (auto& thread : workers)
-            thread.join();
+        static ThreadPool instance{};
+        return instance;
     }
 
     template <class T>
@@ -59,7 +52,7 @@ class ThreadPool
         return wrapper->get_future();
     }
 
-  private:
+  //private:
     friend class Worker; //Gives access to the private variables of this class
 
     std::vector<std::thread> workers;
@@ -69,6 +62,23 @@ class ThreadPool
 
     std::mutex queue_mutex; //Lock for our queue
     bool stop = false;
+
+    ThreadPool(size_t numThreads = std::thread::hardware_concurrency()) : stop(false)
+    {
+        std::cout << ":O" << std::endl;
+        for (size_t i = 0; i < numThreads; ++i)
+            workers.push_back(std::thread(Worker(*this)));
+    }
+
+    ~ThreadPool()
+    {
+        stop = true; // stop all threads
+        condition.notify_all();
+
+        for (auto& thread : workers)
+            thread.join();
+    }
+
 };
 
 inline void Worker::operator()()

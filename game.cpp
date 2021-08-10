@@ -126,8 +126,6 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
 // -----------------------------------------------------------
 void Game::Update(float deltaTime)
 {
-    static double max_force = 0;
-
     //Update tanks
     for (Tank* tank : tanks)
     {

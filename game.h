@@ -17,7 +17,7 @@ class Game
     void Update(float deltaTime);
     void Draw();
     void Tick(float deltaTime);
-    void insertion_sort_tanks_health(const std::vector<Tank>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end);
+    void sort_tanks_health(std::vector<Tank>& list/*, std::vector<const Tank*>& sorted_tanks*/, UINT16 lo, UINT16 hi);
     void MeasurePerformance();
 
     Tank& FindClosestEnemy(Tank& current_tank);
@@ -55,6 +55,9 @@ class Game
     long long frame_count = 0;
 
     bool lock_update = false;
+
+    UINT16 sort_tanks_health_partition(std::vector<Tank>& list, UINT16 lo, UINT16 hi) const;
+
 };
 
 }; // namespace Tmpl8

@@ -262,8 +262,7 @@ void Game::Draw()
         const UINT16 NUM_TANKS = ((t < 1) ? NUM_TANKS_BLUE : NUM_TANKS_RED);
 
         const UINT16 begin = ((t < 1) ? 0 : NUM_TANKS_BLUE);
-        std::vector<const Tank*> sorted_tanks;
-        insertion_sort_tanks_health(tanks, sorted_tanks, begin, begin + NUM_TANKS);
+        sort_tanks_health(tanks, begin, begin + NUM_TANKS - 1);
 
         for (int i = 0; i < NUM_TANKS; i++)
         {
@@ -273,7 +272,7 @@ void Game::Draw()
             int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
             screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(i).health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
         }
     }
 }
@@ -281,32 +280,39 @@ void Game::Draw()
 // -----------------------------------------------------------
 // Sort tanks by health value using insertion sort
 // -----------------------------------------------------------
-void Tmpl8::Game::insertion_sort_tanks_health(const std::vector<Tank>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end)
+void Tmpl8::Game::sort_tanks_health(std::vector<Tank>& list, UINT16 lo, UINT16 hi)
 {
-    const UINT16 NUM_TANKS = end - begin;
-    sorted_tanks.reserve(NUM_TANKS);
-    sorted_tanks.emplace_back(&original.at(begin));
-
-    for (int i = begin + 1; i < (begin + NUM_TANKS); i++)
+    if (lo >= 0 && hi >= 0)
     {
-        const Tank& current_tank = original.at(i);
-
-        for (int s = (int)sorted_tanks.size() - 1; s >= 0; s--)
+        if (lo < hi)
         {
-            const Tank* current_checking_tank = sorted_tanks.at(s);
-
-            if ((current_checking_tank->CompareHealth(current_tank) <= 0))
-            {
-                sorted_tanks.insert(1 + sorted_tanks.begin() + s, &current_tank);
-                break;
-            }
-
-            if (s == 0)
-            {
-                sorted_tanks.insert(sorted_tanks.begin(), &current_tank);
-                break;
-            }
+            const auto p = sort_tanks_health_partition(list, lo, hi);
+            sort_tanks_health(list, lo, p);
+            sort_tanks_health(list, p + 1, hi);
         }
+    }
+}
+
+UINT16 Tmpl8::Game::sort_tanks_health_partition(std::vector<Tank>& list, UINT16 lo, UINT16 hi) const
+{
+    const auto pivot = list[floor((hi + lo) / 2)].health;
+    auto i = lo - 1;
+    auto j = hi + 1;
+    while (true)
+    {
+        do
+        {
+            i++;
+        } while (list[i].health < pivot);
+
+        do
+        {
+            j--;
+        } while (list[j].health > pivot);
+
+        if (i >= j) return j;
+
+        std::swap(list[i], list[j]);
     }
 }
 

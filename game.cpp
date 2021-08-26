@@ -135,7 +135,7 @@ void Game::Update(float deltaTime)
         if (tank->IsActive())
         {
             //Check tank collision and nudge tanks away from each other
-            tanks_tree.forEachWithinBounds({tank->GetPosition() - vec2{tank->GetCollisionRadius(), tank->GetCollisionRadius()}, tank->GetPosition() + vec2{tank->GetCollisionRadius(), tank->GetCollisionRadius()}}, [&](const Data<Tank*>& oTank) {
+            tanks_tree.forEachWithinBounds({tank->GetPosition() - vec2{tank->GetCollisionRadius()+1, tank->GetCollisionRadius()+1}, tank->GetPosition() + vec2{tank->GetCollisionRadius()+1, tank->GetCollisionRadius()+1}}, [&](const Data<Tank*>& oTank) {
                 if (tank == oTank.data) return;
 
                 vec2 dir = tank->GetPosition() - oTank.data->GetPosition();
@@ -177,7 +177,7 @@ void Game::Update(float deltaTime)
     {
         rocket.Tick();
 
-        tanks_tree.forEachWithinBounds({rocket.GetPosition() - vec2{rocket.GetCollisionRadius(), rocket.GetCollisionRadius()}, rocket.GetPosition() + vec2{rocket.GetCollisionRadius(), rocket.GetCollisionRadius()}}, [&](const Data<Tank*> tank) {
+        tanks_tree.forEachWithinBounds({rocket.GetPosition() - vec2{rocket.GetCollisionRadius()+1, rocket.GetCollisionRadius()+1}, rocket.GetPosition() + vec2{rocket.GetCollisionRadius()+1, rocket.GetCollisionRadius()+1}}, [&](const Data<Tank*> tank) {
             if (tank.data->IsActive() && (tank.data->GetAllignment() != rocket.GetAllignment()) && rocket.Intersects(tank.data->GetPosition(), tank.data->GetCollisionRadius()))
             {
                 explosions.push_back(Explosion(&explosion, tank.data->GetPosition()));
@@ -202,7 +202,7 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        tanks_tree.forEachWithinBounds({particle_beam.rectangle.min, particle_beam.rectangle.max}, [&](const Data<Tank*> tank) {
+        tanks_tree.forEachWithinBounds({particle_beam.rectangle.min - vec2{1, 1}, particle_beam.rectangle.max + vec2{1, 1}}, [&](const Data<Tank*> tank) {
             if (tank.data->IsActive() && particle_beam.rectangle.intersectsCircle(tank.data->GetPosition(), tank.data->GetCollisionRadius()))
             {
                 if (tank.data->Hit(particle_beam.damage))

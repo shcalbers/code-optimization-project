@@ -57,7 +57,7 @@ class Game
 
     bool lock_update = false;
 
-    QuadTreeNode<Tank*> tanks_tree = QuadTreeNode<Tank*>{{{0, 0}, {SCRWIDTH, SCRHEIGHT}}, 4};
+    QuadTreeNode<Tank*> tanks_tree = QuadTreeNode<Tank*>{{{0, 0}, {1280, 1700}}, 4};
 };
 
 }; // namespace Tmpl8

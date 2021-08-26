@@ -48,7 +48,7 @@ class Game
     Surface* screen;
 
     vector<Tank*> tanks;
-    SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {SCRWIDTH, SCRHEIGHT}, 25);
+    SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {1280, 1700}, 25);
 
     vector<Rocket> rockets;
     vector<Smoke> smokes;

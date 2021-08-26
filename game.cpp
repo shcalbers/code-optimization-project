@@ -131,7 +131,7 @@ void Game::Update(float deltaTime)
     {
         if (tank->active)
         {
-            for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius, tank->collision_radius}, tank->position + vec2{tank->collision_radius, tank->collision_radius}))
+            for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius+1, tank->collision_radius+1}, tank->position + vec2{tank->collision_radius+1, tank->collision_radius+1}))
             {
                 if (tank == oTank.object) continue;
 
@@ -174,7 +174,7 @@ void Game::Update(float deltaTime)
         rocket.Tick();
 
         //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-        for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius, rocket.collision_radius}, rocket.position + vec2{rocket.collision_radius, rocket.collision_radius}))
+        for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius+1, rocket.collision_radius+1}, rocket.position + vec2{rocket.collision_radius+1, rocket.collision_radius+1}))
         {
             if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
             {
@@ -200,7 +200,7 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        for (auto tank : tanks_hash.getObjectsBetween(particle_beam.rectangle.min, particle_beam.rectangle.max))
+        for (auto tank : tanks_hash.getObjectsBetween(particle_beam.rectangle.min-1, particle_beam.rectangle.max+1))
         {
             if (tank.object->active && particle_beam.rectangle.intersectsCircle(tank.object->Get_Position(), tank.object->Get_collision_radius()))
             {

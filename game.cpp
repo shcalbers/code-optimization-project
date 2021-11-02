@@ -17,7 +17,7 @@
 #define MAX_FRAMES 2000
 
 //Global performance timer
-#define REF_PERFORMANCE 73466 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
+#define REF_PERFORMANCE 17735.8 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
 static timer perf_timer;
 static float duration;
 
@@ -131,9 +131,9 @@ void Game::Update(float deltaTime)
     {
         if (tank->active)
         {
-            for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius+1, tank->collision_radius+1}, tank->position + vec2{tank->collision_radius+1, tank->collision_radius+1}))
-            {
-                if (tank == oTank.object) continue;
+            std::mutex tank_mutex;
+            tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}, [&](auto& oTank) -> void {
+                if (tank == oTank.object) return;
 
                 vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
                 float dirSquaredLen = dir.sqrLength();
@@ -142,9 +142,10 @@ void Game::Update(float deltaTime)
 
                 if (dirSquaredLen < colSquaredLen)
                 {
-                    tank->Push(dir.normalized(), 1.f);
+                    std::unique_lock<std::mutex>(tank_mutex), tank->Push(dir.normalized(), 1.f);
                 }
-            }
+            });
+
             //Move tanks according to speed and nudges (see above) also reload
             tanks_hash.tryRemoveAt(tank->Get_Position());
             tank->Tick();
@@ -167,28 +168,26 @@ void Game::Update(float deltaTime)
     {
         smoke.Tick();
     }
-
+    std::mutex a, b, c;
     //Update rockets
     for (Rocket& rocket : rockets)
     {
         rocket.Tick();
 
         //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-        for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius+1, rocket.collision_radius+1}, rocket.position + vec2{rocket.collision_radius+1, rocket.collision_radius+1}))
-        {
-            if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
+        tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, rocket.position + vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, [&](auto& tank) -> void {
+            if ((std::unique_lock<std::mutex>(c), rocket.active) && tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
             {
-                explosions.push_back(Explosion(&explosion, tank.object->position));
+                std::unique_lock<std::mutex>(a), explosions.push_back(Explosion(&explosion, tank.object->position));
 
                 if (tank.object->hit(ROCKET_HIT_VALUE))
                 {
-                    smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
+                    std::unique_lock<std::mutex>(b), smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
                 }
 
-                rocket.active = false;
-                break;
+                std::unique_lock<std::mutex>(c), rocket.active = false;
             }
-        }
+        });
     }
 
     //Remove exploded rockets with remove erase idiom
@@ -200,16 +199,15 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        for (auto tank : tanks_hash.getObjectsBetween(particle_beam.rectangle.min-1, particle_beam.rectangle.max+1))
-        {
+        tanks_hash.getObjectsBetween(particle_beam.rectangle.min - 1, particle_beam.rectangle.max + 1, [&](auto& tank) -> void {
             if (tank.object->active && particle_beam.rectangle.intersectsCircle(tank.object->Get_Position(), tank.object->Get_collision_radius()))
             {
                 if (tank.object->hit(particle_beam.damage))
                 {
-                    smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
+                    std::unique_lock<std::mutex>(b), smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
                 }
             }
-        }
+        });
     }
 
     //Update explosion sprites and remove when done with remove erase idiom

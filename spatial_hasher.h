@@ -20,7 +20,8 @@ public:
     bool tryInsertAt(vec2 position, T gameObject);
     bool tryRemoveAt(vec2 position);
 
-    std::vector<Entry> getObjectsBetween(vec2 lowerbound, vec2 upperbound) const;
+    template<typename Function_T>
+    void getObjectsBetween(vec2 lowerbound, vec2 upperbound, Function_T function) const;
 
 private:
    
@@ -82,9 +83,11 @@ bool SpatialHasher<T>::tryRemoveAt(vec2 position)
 }
 
 template<typename T>
-std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetween(vec2 lowerbound, vec2 upperbound) const
+template<typename Function_T>
+void SpatialHasher<T>::getObjectsBetween(vec2 lowerbound, vec2 upperbound, Function_T function) const
 {
-    std::vector<Entry> objects;
+    static ThreadPool threadpool(std::thread::hardware_concurrency());
+    std::atomic<int> running_tasks = 0;
 
     lowerbound = {max(this->lowerbound.x, lowerbound.x), max(this->lowerbound.y, lowerbound.y)};
     upperbound = {min(this->upperbound.x-1, upperbound.x), min(this->upperbound.y-1, upperbound.y)};
@@ -92,15 +95,31 @@ std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetwee
     {
         for (int offset = 0; offset < max_offset; offset++)
         {
-            for (auto& entry : cells[index + offset])
+            if (auto& cell = cells[index + offset]; cell.size() >= 400 && running_tasks <= std::thread::hardware_concurrency())
             {
-                if (pointWithinBounds(entry.position, lowerbound, upperbound))
-                    objects.push_back(entry);
+                running_tasks++;
+                threadpool.enqueue([&]() -> void {
+                    for (auto& entry : cell)
+                    {
+                        if (pointWithinBounds(entry.position, lowerbound, upperbound))
+                            function(entry);
+                    }
+
+                    running_tasks--;
+                });
+            }
+            else
+            {
+                for (auto& entry : cell)
+                {
+                    if (pointWithinBounds(entry.position, lowerbound, upperbound))
+                        function(entry);
+                }
             }
         }
     }
 
-    return objects;
+    while (running_tasks != 0) continue;
 }
 
 template<typename T>

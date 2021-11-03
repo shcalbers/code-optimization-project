@@ -32,6 +32,9 @@ public:
     template<typename Callable>
     void forEachWithinBounds(BoundingBox boundary, Callable& callable) const;
 
+    template<typename Pred_T>
+    Data<T> findNearestNeighbour(vec2 position, Pred_T& predicate) const;
+
     bool tryInsertAt(vec2 position, T data);
     bool tryRemoveAt(vec2 position);
 
@@ -126,6 +129,51 @@ void QuadTreeNode<T>::forEachWithinBounds(BoundingBox boundary, Callable& callab
             }
         }
     }
+}
+
+template<typename T>
+template<typename Pred_T>
+Data<T> QuadTreeNode<T>::findNearestNeighbour(const vec2 position, Pred_T& predicate) const
+{
+    const Data<T>* nearest_neighbour = nullptr;
+    float nearest_distance_sqr = std::numeric_limits<float>::max();
+
+    std::deque<const QuadTreeNode*> nodes;
+    nodes.push_back(this);
+
+    while (!nodes.empty())
+    {
+        auto current_node = nodes.front();
+        nodes.pop_front();
+
+        if (distanceSqr(current_node->boundary, position) >= nearest_distance_sqr) continue;
+
+        for (const auto& point : current_node->points)
+        {
+            if (!predicate(point)) continue;
+
+            auto sqr_dist = (position - point.position).sqrLength();
+            if (sqr_dist < nearest_distance_sqr)
+            {
+                nearest_distance_sqr = sqr_dist;
+                nearest_neighbour = &point;
+            }
+        }
+
+        if (current_node->isSubdivided())
+        {
+            for (const auto& row : current_node->quadrants)
+            {
+                for (const auto& quadrant : row)
+                {
+                    if (distanceSqr(quadrant->boundary, position) < nearest_distance_sqr)
+                        nodes.push_back(quadrant);
+                }
+            }
+        }
+    }
+
+    return *nearest_neighbour; // TODO: Add null check
 }
 
 template <typename T>

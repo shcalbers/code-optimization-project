@@ -80,7 +80,6 @@ void Game::Init()
         Tank* tank = new Tank(start_red_x + ((i % max_rows) * spacing), start_red_y + ((i / max_rows) * spacing), RED, &tank_red, &smoke, 80, 80, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
         tanks_tree.tryInsertAt(tank->GetPosition(), tank);
-
     }
 
     particle_beams.push_back(Particle_beam(vec2(SCRWIDTH / 2, SCRHEIGHT / 2), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
@@ -157,7 +156,7 @@ void Game::Update(float deltaTime)
             //Shoot at closest target if reloaded
             if (tank->RocketReloaded())
             {
-                Tank* target = Find_Closest_Enemy(tank);
+                Tank* target = tanks_tree.findNearestNeighbour(tank->GetPosition(), [&](Data<Tank*> oTank) -> bool { return oTank.data->GetAllignment() != tank->GetAllignment() && oTank.data->IsActive(); }).data;
 
                 rockets.push_back(Rocket(tank->GetPosition(), (target->GetPosition() - tank->GetPosition()).normalized() * 3, rocket_radius, tank->GetAllignment(), ((tank->GetAllignment() == RED) ? &rocket_red : &rocket_blue)));
 

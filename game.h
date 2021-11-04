@@ -17,7 +17,7 @@ class Game
     void Update(float deltaTime);
     void Draw();
     void Tick(float deltaTime);
-    void insertion_sort_tanks_health(const std::vector<Tank>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end);
+    void sort_tanks_health(std::vector<Tank>& list, UINT16 begin, UINT16 end);
     void MeasurePerformance();
 
     Tank& FindClosestEnemy(Tank& current_tank);

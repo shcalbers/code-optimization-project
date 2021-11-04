@@ -262,8 +262,7 @@ void Game::Draw()
         const UINT16 NUM_TANKS = ((t < 1) ? NUM_TANKS_BLUE : NUM_TANKS_RED);
 
         const UINT16 begin = ((t < 1) ? 0 : NUM_TANKS_BLUE);
-        std::vector<const Tank*> sorted_tanks;
-        insertion_sort_tanks_health(tanks, sorted_tanks, begin, begin + NUM_TANKS);
+        sort_tanks_health(tanks, begin, begin + NUM_TANKS);
 
         for (int i = 0; i < NUM_TANKS; i++)
         {
@@ -273,40 +272,65 @@ void Game::Draw()
             int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
             screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(begin+i).health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
         }
     }
+}
+
+auto iParent(const int i) noexcept { return floor((i - 1) / 2); }
+auto iLeftChild(const int i) noexcept { return 2*i + 1; }
+auto iRightChild(const int i) noexcept { return 2*i + 2; }
+
+void siftDown(std::vector<Tank>& list, UINT16 index, UINT16 begin, UINT16 end) noexcept
+{
+    const auto count = end - begin;
+    auto root = index;
+
+    while (iLeftChild(root) <= count)
+    {
+        auto child = iLeftChild(root);
+        auto swap = root;
+
+        if (list[begin+swap].health < list[begin+child].health)
+        {
+            swap = child;
+        }
+        if (child+1 <= count && list[begin+swap].health <= list[begin+child+1].health)
+        {
+            swap = child + 1;
+        }
+        if (swap == root)
+        {
+            return;
+        }
+        else
+        {
+            std::swap(list[begin+root], list[begin+swap]);
+            root = swap;
+        }
+    }
+}
+
+void heapify(std::vector<Tank>& list, UINT16 begin, UINT16 end) noexcept
+{
+    const auto count = end - begin;
+    for (auto i = iParent(count - 1); i >= 0; i--)
+        siftDown(list, i, begin, end-1);
 }
 
 // -----------------------------------------------------------
 // Sort tanks by health value using insertion sort
 // -----------------------------------------------------------
-void Tmpl8::Game::insertion_sort_tanks_health(const std::vector<Tank>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end)
+void Tmpl8::Game::sort_tanks_health(std::vector<Tank>& list, UINT16 begin, UINT16 end)
 {
-    const UINT16 NUM_TANKS = end - begin;
-    sorted_tanks.reserve(NUM_TANKS);
-    sorted_tanks.emplace_back(&original.at(begin));
+    heapify(list, begin, end);
 
-    for (int i = begin + 1; i < (begin + NUM_TANKS); i++)
+    end--;
+    while (end > begin)
     {
-        const Tank& current_tank = original.at(i);
-
-        for (int s = (int)sorted_tanks.size() - 1; s >= 0; s--)
-        {
-            const Tank* current_checking_tank = sorted_tanks.at(s);
-
-            if ((current_checking_tank->CompareHealth(current_tank) <= 0))
-            {
-                sorted_tanks.insert(1 + sorted_tanks.begin() + s, &current_tank);
-                break;
-            }
-
-            if (s == 0)
-            {
-                sorted_tanks.insert(sorted_tanks.begin(), &current_tank);
-                break;
-            }
-        }
+        swap(list[end], list[begin]);
+        end--;
+        siftDown(list, 0, begin, end);
     }
 }
 

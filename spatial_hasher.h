@@ -2,6 +2,7 @@
 #define SPATIAL_HASHER_H
 
 #include "precomp.h"
+#include "boundingbox.h"
 
 template<typename T>
 class SpatialHasher
@@ -21,9 +22,10 @@ public:
     bool tryRemoveAt(vec2 position);
 
     std::vector<Entry> getObjectsBetween(vec2 lowerbound, vec2 upperbound) const;
+    Entry findNearestNeighbour(vec2 position) const;
 
 private:
-   
+
     using Container_T = std::vector<std::vector<Entry>>;
 
     vec2 lowerbound, upperbound;
@@ -35,6 +37,8 @@ private:
     static bool pointWithinBounds(vec2 position, vec2 lowerbound, vec2 upperbound) noexcept;
 
     int calculateIndex(vec2 position) const;
+    vec2 calculateIndex2D(vec2 position) const;
+
 
 };
 
@@ -104,6 +108,68 @@ std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetwee
 }
 
 template<typename T>
+typename SpatialHasher<T>::Entry SpatialHasher<T>::findNearestNeighbour(vec2 position) const
+{
+    position = vec2{ min(max(lowerbound.x, position.x), upperbound.x),
+                     min(max(lowerbound.y, position.y), upperbound.y)  };
+
+    float nearest_distance_sqr = std::numeric_limits<float>::infinity();
+    const Entry* nearest_neighbour = nullptr;
+
+    auto search_boundary = BoundingBox{vec2{0, 0}, vec2{float(cols-1), float(rows-1)}};
+    auto search_index = calculateIndex2D(position);
+    auto search_range = 3;
+
+    for (const auto& entry : cells[search_index.y * cols + search_index.x])
+    {
+        auto sqr_dist = (position - entry.position).sqrLength();
+        if (sqr_dist < nearest_distance_sqr)
+        {
+            nearest_distance_sqr = sqr_dist;
+            nearest_neighbour = &entry;
+        }
+    }
+
+    while (nearest_neighbour == nullptr)
+    {
+        enum Direction
+        {
+            RIGHT, DOWN, LEFT, UP, COUNT
+        };
+
+        static const vec2 step[Direction::COUNT] = {{+1, +0}, {+0, +1}, {-1, -0}, {-0, -1}};
+
+        for (int direction = Direction::RIGHT; direction < Direction::COUNT; direction++)
+        {
+            for (auto i = 1; i < search_range; i++)
+            {
+                if (contains(search_boundary, search_index))
+                {
+                    auto& current_cell = cells[search_index.y * cols + search_index.x];
+
+                    for (const auto& entry : current_cell)
+                    {
+                        auto sqr_dist = (position - entry.position).sqrLength();
+                        if (sqr_dist < nearest_distance_sqr)
+                        {
+                            nearest_distance_sqr = sqr_dist;
+                            nearest_neighbour = &entry;
+                        }
+                    }
+                }
+
+                search_index += step[direction];
+            }
+        }
+
+        search_index += {-1, -1};
+        search_range += 2;
+    }
+
+    return *nearest_neighbour;
+}
+
+template<typename T>
 bool SpatialHasher<T>::pointWithinBounds(vec2 position, vec2 lowerbound, vec2 upperbound) noexcept
 {
     return (lowerbound.x < position.x && position.x < upperbound.x) && (lowerbound.y < position.y && position.y < upperbound.y);
@@ -114,5 +180,12 @@ int SpatialHasher<T>::calculateIndex(vec2 position) const
 {
     return int((floor((position.y - lowerbound.y) / cellSize) * cols) + floor((position.x - lowerbound.x) / cellSize));
 }
+
+template <typename T>
+vec2 SpatialHasher<T>::calculateIndex2D(vec2 position) const
+{
+    return {floor((position.x - lowerbound.x) / cellSize), floor((position.y - lowerbound.y) / cellSize)};
+}
+
 
 #endif

@@ -17,7 +17,7 @@
 #define MAX_FRAMES 2000
 
 //Global performance timer
-#define REF_PERFORMANCE 73466 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
+#define REF_PERFORMANCE 57659.7 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
 static timer perf_timer;
 static float duration;
 
@@ -72,6 +72,7 @@ void Game::Init()
         Tank* tank = new Tank(start_blue_x + ((i % max_rows) * spacing), start_blue_y + ((i / max_rows) * spacing), BLUE, &tank_blue, &smoke, 1200, 600, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
         tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+        blue_tanks_hash.tryInsertAt(tank->Get_Position(), tank);
     }
     //Spawn red tanks
     for (int i = 0; i < NUM_TANKS_RED; i++)
@@ -79,6 +80,7 @@ void Game::Init()
         Tank* tank = new Tank(start_red_x + ((i % max_rows) * spacing), start_red_y + ((i / max_rows) * spacing), RED, &tank_red, &smoke, 80, 80, tank_radius, TANK_MAX_HEALTH, TANK_MAX_SPEED);
         tanks.push_back(tank);
         tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+        red_tanks_hash.tryInsertAt(tank->Get_Position(), tank);
     }
 
     particle_beams.push_back(Particle_beam(vec2(SCRWIDTH / 2, SCRHEIGHT / 2), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
@@ -147,13 +149,25 @@ void Game::Update(float deltaTime)
             }
             //Move tanks according to speed and nudges (see above) also reload
             tanks_hash.tryRemoveAt(tank->Get_Position());
-            tank->Tick();
+            if (tank->allignment == allignments::RED)
+            {
+                red_tanks_hash.tryRemoveAt(tank->Get_Position());
+                tank->Tick();
+                if (tank->active) red_tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+            }
+            else
+            {
+                blue_tanks_hash.tryRemoveAt(tank->Get_Position());
+                tank->Tick();
+                if (tank->active) blue_tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+            }
             tanks_hash.tryInsertAt(tank->Get_Position(), tank);
 
             //Shoot at closest target if reloaded
             if (tank->Rocket_Reloaded())
             {
-                Tank* target = FindClosestEnemy(tank);
+                Tank* target = tank->allignment == allignments::BLUE ? red_tanks_hash.findNearestNeighbour(tank->Get_Position()).object
+                                                                     : blue_tanks_hash.findNearestNeighbour(tank->Get_Position()).object;
 
                 rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
 

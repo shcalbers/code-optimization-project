@@ -17,7 +17,7 @@
 #define MAX_FRAMES 2000
 
 //Global performance timer
-#define REF_PERFORMANCE 73466 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
+#define REF_PERFORMANCE 59024.8 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
 static timer perf_timer;
 static float duration;
 
@@ -117,8 +117,6 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
     return tanks.at(closest_index);
 }
 
-static ThreadPool pool(4);
-
 // -----------------------------------------------------------
 // Update the game state:
 // Move all objects
@@ -168,60 +166,16 @@ void Game::Update(float deltaTime)
         jobs_running--;
     };
 
-    auto functions_started = 0;
-    for (auto j = 0; j < 4; j++)
+    for (auto i = 0; i < std::thread::hardware_concurrency(); i++)
     {
         jobs_running++;
-        if (j < 3)
+        if (i < (std::thread::hardware_concurrency()-1))
         {
-            functions_started++;
-            //thread(updateTanks, 2558 / 4.0 * j, 2558 / 4.0 * (j + 1)).detach();
-             pool.enqueue([&, j]() noexcept -> void
-                         {
-                             //Update tanks
-                             for (auto i = 2558 / 4.0 * j; i < (2558 / 4.0 * (j + 1)); i++)
-                             {
-                                 auto tank = tanks[i];
-
-                                 if (tank->active)
-                                 {
-                                     for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}))
-                                     {
-                                         if (tank == oTank.object) continue;
-
-                                         vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
-                                         float dirSquaredLen = dir.sqrLength();
-
-                                         float colSquaredLen = (tank->Get_collision_radius() * tank->Get_collision_radius()) + (oTank.object->Get_collision_radius() * oTank.object->Get_collision_radius());
-
-                                         if (dirSquaredLen < colSquaredLen)
-                                         {
-                                             tank->Push(dir.normalized(), 1.f);
-                                         }
-                                     }
-
-                                     //Shoot at closest target if reloaded
-                                     if (tank->Rocket_Reloaded())
-                                     {
-                                         Tank* target = FindClosestEnemy(tank);
-                                         {
-                                         std::unique_lock<std::mutex> lock(m);
-                                         rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
-                                         
-                                         }
-                                         
-                                         tank->Reload_Rocket();
-                                     }
-                                 }
-                             }
-
-                             jobs_running--;
-                         });
+            pool.enqueue([&, i]() noexcept -> void { updateTanks(2558/4.0*i, 2558/4.0*(i+1)); });
         }
         else
         {
-            functions_started++;
-            updateTanks(2558/4.0 * j, 2558/4.0*(j+1));
+            updateTanks(2558/4.0*i, 2558/4.0*(i+1));
             while (jobs_running) /*wait*/;
         }
     }

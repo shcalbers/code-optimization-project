@@ -45,6 +45,9 @@ class Game
     }
 
   private:
+
+    ThreadPool pool{std::thread::hardware_concurrency()};
+
     Surface* screen;
 
     vector<Tank*> tanks;

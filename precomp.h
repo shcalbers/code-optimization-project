@@ -53,6 +53,7 @@
 
 #include <thread>
 #include <mutex>
+#include <shared_mutex>
 #include <deque>
 #include <future>
 

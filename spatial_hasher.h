@@ -31,6 +31,7 @@ private:
 
     int rows, cols;
     Container_T cells;
+    mutable std::vector<std::shared_mutex> mutices;
 
     static bool pointWithinBounds(vec2 position, vec2 lowerbound, vec2 upperbound) noexcept;
 
@@ -48,6 +49,7 @@ SpatialHasher<T>::SpatialHasher(vec2 lowerbound, vec2 upperbound, float cellSize
     this->rows = ceil((upperbound.y - lowerbound.y) / this->cellSize);
     this->cols = ceil((upperbound.x - lowerbound.x) / this->cellSize);
     this->cells = std::vector<std::vector<Entry>>(rows * cols);
+    this->mutices = std::vector<std::shared_mutex>(rows * cols);
 }
 
 template<typename T>
@@ -55,6 +57,7 @@ bool SpatialHasher<T>::tryInsertAt(vec2 position, T gameObject)
 {
     if (pointWithinBounds(position, lowerbound, upperbound))
     {
+        std::unique_lock<std::shared_mutex> lock(mutices[calculateIndex(position)]);
         cells[calculateIndex(position)].push_back(Entry{position, gameObject});
         return true;
     }
@@ -67,6 +70,7 @@ bool SpatialHasher<T>::tryRemoveAt(vec2 position)
 {
     if (pointWithinBounds(position, lowerbound, upperbound))
     {
+        std::unique_lock<std::shared_mutex> lock(mutices[calculateIndex(position)]);
         auto& cell = cells[calculateIndex(position)];
         for (auto it = cell.begin(); it != cell.end(); it++)
         {
@@ -92,6 +96,7 @@ std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetwee
     {
         for (int offset = 0; offset < max_offset; offset++)
         {
+            std::shared_lock<std::shared_mutex> lock(mutices[index + offset]);
             for (auto& entry : cells[index + offset])
             {
                 if (pointWithinBounds(entry.position, lowerbound, upperbound))

@@ -117,6 +117,8 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
     return tanks.at(closest_index);
 }
 
+static ThreadPool pool(4);
+
 // -----------------------------------------------------------
 // Update the game state:
 // Move all objects
@@ -126,39 +128,110 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
 // -----------------------------------------------------------
 void Game::Update(float deltaTime)
 {
-    //Update tanks
-    for (Tank* tank : tanks)
+    std::mutex m;
+    std::atomic<int> jobs_running = 0;
+    auto updateTanks = [&](int start, int end) noexcept
     {
-        if (tank->active)
+        //Update tanks
+        for (auto i = start; i < end; i++)
         {
-            for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius+1, tank->collision_radius+1}, tank->position + vec2{tank->collision_radius+1, tank->collision_radius+1}))
+            auto tank = tanks[i];
+
+            if (tank->active)
             {
-                if (tank == oTank.object) continue;
-
-                vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
-                float dirSquaredLen = dir.sqrLength();
-
-                float colSquaredLen = (tank->Get_collision_radius() * tank->Get_collision_radius()) + (oTank.object->Get_collision_radius() * oTank.object->Get_collision_radius());
-
-                if (dirSquaredLen < colSquaredLen)
+                for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}))
                 {
-                    tank->Push(dir.normalized(), 1.f);
+                    if (tank == oTank.object) continue;
+
+                    vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
+                    float dirSquaredLen = dir.sqrLength();
+
+                    float colSquaredLen = (tank->Get_collision_radius() * tank->Get_collision_radius()) + (oTank.object->Get_collision_radius() * oTank.object->Get_collision_radius());
+
+                    if (dirSquaredLen < colSquaredLen)
+                    {
+                        tank->Push(dir.normalized(), 1.f);
+                    }
+                }
+
+                //Shoot at closest target if reloaded
+                if (tank->Rocket_Reloaded())
+                {
+                    Tank* target = FindClosestEnemy(tank);
+
+                    std::unique_lock<std::mutex>(m), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
+                    tank->Reload_Rocket();
                 }
             }
+        }
+
+        jobs_running--;
+    };
+
+    auto functions_started = 0;
+    for (auto j = 0; j < 4; j++)
+    {
+        jobs_running++;
+        if (j < 3)
+        {
+            functions_started++;
+            //thread(updateTanks, 2558 / 4.0 * j, 2558 / 4.0 * (j + 1)).detach();
+             pool.enqueue([&, j]() noexcept -> void
+                         {
+                             //Update tanks
+                             for (auto i = 2558 / 4.0 * j; i < (2558 / 4.0 * (j + 1)); i++)
+                             {
+                                 auto tank = tanks[i];
+
+                                 if (tank->active)
+                                 {
+                                     for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}))
+                                     {
+                                         if (tank == oTank.object) continue;
+
+                                         vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
+                                         float dirSquaredLen = dir.sqrLength();
+
+                                         float colSquaredLen = (tank->Get_collision_radius() * tank->Get_collision_radius()) + (oTank.object->Get_collision_radius() * oTank.object->Get_collision_radius());
+
+                                         if (dirSquaredLen < colSquaredLen)
+                                         {
+                                             tank->Push(dir.normalized(), 1.f);
+                                         }
+                                     }
+
+                                     //Shoot at closest target if reloaded
+                                     if (tank->Rocket_Reloaded())
+                                     {
+                                         Tank* target = FindClosestEnemy(tank);
+                                         {
+                                         std::unique_lock<std::mutex> lock(m);
+                                         rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
+                                         
+                                         }
+                                         
+                                         tank->Reload_Rocket();
+                                     }
+                                 }
+                             }
+
+                             jobs_running--;
+                         });
+        }
+        else
+        {
+            functions_started++;
+            updateTanks(2558/4.0 * j, 2558/4.0*(j+1));
+            while (jobs_running) /*wait*/;
+        }
+    }
+
+    for (Tank* tank : tanks) {
+        if (tank->active) {
             //Move tanks according to speed and nudges (see above) also reload
             tanks_hash.tryRemoveAt(tank->Get_Position());
             tank->Tick();
             tanks_hash.tryInsertAt(tank->Get_Position(), tank);
-
-            //Shoot at closest target if reloaded
-            if (tank->Rocket_Reloaded())
-            {
-                Tank* target = FindClosestEnemy(tank);
-
-                rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
-
-                tank->Reload_Rocket();
-            }
         }
     }
 

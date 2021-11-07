@@ -46,14 +46,17 @@ class Game
 
   private:
 
-    ThreadPool pool{std::thread::hardware_concurrency()};
+    static const unsigned int thread_count;
+    ThreadPool pool{thread_count};
 
     Surface* screen;
 
     vector<Tank*> tanks;
     SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {1280, 1700}, 25);
 
+    mutex rockets_mutex;
     vector<Rocket> rockets;
+
     vector<Smoke> smokes;
     vector<Explosion> explosions;
     vector<Particle_beam> particle_beams;
@@ -62,6 +65,10 @@ class Game
     long long frame_count = 0;
 
     bool lock_update = false;
+
+    template<typename Callable_T>
+    void RunParallel(const Callable_T& callable, int N, unsigned int max_threads = thread_count) noexcept;
+
 };
 
 }; // namespace Tmpl8

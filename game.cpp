@@ -46,6 +46,8 @@ const static vec2 rocket_size(25, 24);
 const static float tank_radius = 12.f;
 const static float rocket_radius = 10.f;
 
+const unsigned int Game::thread_count = thread::hardware_concurrency();
+
 // -----------------------------------------------------------
 // Initialize the application
 // -----------------------------------------------------------
@@ -117,6 +119,31 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
     return tanks.at(closest_index);
 }
 
+template <typename Callable_T>
+void Game::RunParallel(const Callable_T& callable, const int N, const unsigned int max_threads) noexcept
+{
+    std::atomic<int> jobs_running = 0;
+
+    for (auto i = 0; i < max_threads; i++)
+    {
+        if (i < (max_threads-1))
+        {
+            jobs_running++;
+            pool.enqueue([&, i]() noexcept -> void
+                         {
+                             callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+                             jobs_running--;
+                         }
+            );
+        }
+        else
+        {
+            callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+            while (jobs_running) /*wait for all jobs to finish*/;
+        }
+    }
+}
+
 // -----------------------------------------------------------
 // Update the game state:
 // Move all objects
@@ -126,8 +153,6 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
 // -----------------------------------------------------------
 void Game::Update(float deltaTime)
 {
-    std::mutex m;
-    std::atomic<int> jobs_running = 0;
     auto updateTanks = [&](int start, int end) noexcept
     {
         //Update tanks
@@ -157,28 +182,14 @@ void Game::Update(float deltaTime)
                 {
                     Tank* target = FindClosestEnemy(tank);
 
-                    std::unique_lock<std::mutex>(m), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
+                    std::unique_lock<std::mutex>(rockets_mutex), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
                     tank->Reload_Rocket();
                 }
             }
         }
-
-        jobs_running--;
     };
 
-    for (auto i = 0; i < std::thread::hardware_concurrency(); i++)
-    {
-        jobs_running++;
-        if (i < (std::thread::hardware_concurrency()-1))
-        {
-            pool.enqueue([&, i]() noexcept -> void { updateTanks(2558/4.0*i, 2558/4.0*(i+1)); });
-        }
-        else
-        {
-            updateTanks(2558/4.0*i, 2558/4.0*(i+1));
-            while (jobs_running) /*wait*/;
-        }
-    }
+    RunParallel(updateTanks, tanks.size());
 
     for (Tank* tank : tanks) {
         if (tank->active) {

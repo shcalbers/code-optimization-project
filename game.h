@@ -49,14 +49,16 @@ class Game
     static const unsigned int thread_count;
     ThreadPool pool{thread_count};
 
+    mutex rockets_mutex;
+    mutex smokes_mutex;
+    mutex explosions_mutex;
+
     Surface* screen;
 
     vector<Tank*> tanks;
     SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {1280, 1700}, 25);
 
-    mutex rockets_mutex;
     vector<Rocket> rockets;
-
     vector<Smoke> smokes;
     vector<Explosion> explosions;
     vector<Particle_beam> particle_beams;

@@ -206,27 +206,39 @@ void Game::Update(float deltaTime)
         smoke.Tick();
     }
 
-    //Update rockets
-    for (Rocket& rocket : rockets)
+    auto updateRockets = [&](int start, int end) noexcept
     {
-        rocket.Tick();
-
-        //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-        for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius+1, rocket.collision_radius+1}, rocket.position + vec2{rocket.collision_radius+1, rocket.collision_radius+1}))
+        //Update rockets
+        for (auto i = start; i < end; i++)
         {
-            if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
+            auto& rocket = rockets[i];
+            rocket.Tick();
+
+            //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
+            for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, rocket.position + vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}))
             {
-                explosions.push_back(Explosion(&explosion, tank.object->position));
-
-                if (tank.object->hit(ROCKET_HIT_VALUE))
+                if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
                 {
-                    smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
-                }
+                    std::unique_lock<std::mutex>(explosions_mutex), explosions.push_back(Explosion(&explosion, tank.object->position));
 
-                rocket.active = false;
-                break;
+                    if (tank.object->hit(ROCKET_HIT_VALUE))
+                    {
+                        std::unique_lock<std::mutex>(smokes_mutex), smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
+                    }
+
+                    rocket.active = false;
+                    break;
+                }
             }
         }
+    };
+
+    if (rockets.size() > 0) {
+        RunParallel(updateRockets, rockets.size());
+    }
+    else
+    {
+        updateRockets(0, rockets.size());
     }
 
     //Remove exploded rockets with remove erase idiom

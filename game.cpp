@@ -332,7 +332,7 @@ void Game::Draw()
     }
 }
 
-void Tmpl8::Game::splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d)
+void Tmpl8::Game::splitmerge_tanks_health_p(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d)
 {
     if (end - begin <= 1)
         return;
@@ -341,15 +341,27 @@ void Tmpl8::Game::splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tan
 
     if (d < thread_count)
     {
-        auto f = pool.enqueue([&]()noexcept{splitmerge_tanks_health(B, A, begin, middle, d*2);});
-        splitmerge_tanks_health(B, A, middle, end, d * 2);
+        auto f = pool.enqueue([&]()noexcept{splitmerge_tanks_health_p(B, A, begin, middle, d*2);});
+        splitmerge_tanks_health_p(B, A, middle, end, d * 2);
         f.wait();
     }
     else
     {
-        splitmerge_tanks_health(B, A, begin, middle, d * 2);
-        splitmerge_tanks_health(B, A, middle, end, d * 2); 
+        splitmerge_tanks_health(B, A, begin, middle);
+        splitmerge_tanks_health(B, A, middle, end); 
     }
+
+    merge_tanks_health(B, A, begin, middle, end);
+}
+
+void Tmpl8::Game::splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end)
+{
+    if (end - begin <= 1)
+        return;
+
+    const auto middle = (end + begin) / 2;
+    splitmerge_tanks_health(B, A, begin, middle);
+    splitmerge_tanks_health(B, A, middle, end); 
 
     merge_tanks_health(B, A, begin, middle, end);
 }

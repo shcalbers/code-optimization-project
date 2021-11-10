@@ -310,14 +310,14 @@ void Game::Draw()
         explosion.Draw(screen);
     }
 
+    auto copy = tanks;
     //Draw sorted health bars
     for (int t = 0; t < 2; t++)
     {
         const UINT16 NUM_TANKS = ((t < 1) ? NUM_TANKS_BLUE : NUM_TANKS_RED);
 
         const UINT16 begin = ((t < 1) ? 0 : NUM_TANKS_BLUE);
-        std::vector<const Tank*> sorted_tanks;
-        insertion_sort_tanks_health(tanks, sorted_tanks, begin, begin + NUM_TANKS);
+        splitmerge_tanks_health(tanks, copy, begin, begin + NUM_TANKS);
 
         for (int i = 0; i < NUM_TANKS; i++)
         {
@@ -327,7 +327,47 @@ void Game::Draw()
             int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
             screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+        }
+    }
+}
+
+void Tmpl8::Game::splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d)
+{
+    if (end - begin <= 1)
+        return;
+
+    const auto middle = (end + begin) / 2;
+
+    if (d < thread_count)
+    {
+        auto f = pool.enqueue([&]()noexcept{splitmerge_tanks_health(B, A, begin, middle, d*2);});
+        splitmerge_tanks_health(B, A, middle, end, d * 2);
+        f.wait();
+    }
+    else
+    {
+        splitmerge_tanks_health(B, A, begin, middle, d * 2);
+        splitmerge_tanks_health(B, A, middle, end, d * 2); 
+    }
+
+    merge_tanks_health(B, A, begin, middle, end);
+}
+
+void Tmpl8::Game::merge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 middle, UINT16 end) const
+{
+    auto i = begin;
+    auto j = middle;
+
+    for (auto k = begin; k < end; k++)
+    {
+        if (i < middle && (j >= end || A[i]->health <= A[j]->health))
+        {
+            B[k] = A[i++];
+        }
+        else
+        {
+            B[k] = A[j++];
         }
     }
 }

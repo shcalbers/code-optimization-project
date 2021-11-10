@@ -71,6 +71,10 @@ class Game
     template<typename Callable_T>
     void RunParallel(const Callable_T& callable, int N, unsigned int max_threads = thread_count) noexcept;
 
+    void splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d = 1);
+
+    void merge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 middle, UINT16 end) const;
+
 };
 
 }; // namespace Tmpl8

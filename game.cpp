@@ -122,25 +122,32 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
 template <typename Callable_T>
 void Game::RunParallel(const Callable_T& callable, const int N, const unsigned int max_threads) noexcept
 {
-    std::atomic<int> jobs_running = 0;
-
-    for (auto i = 0; i < max_threads; i++)
+    if (N >= max_threads)
     {
-        if (i < (max_threads-1))
+        std::atomic<int> jobs_running = 0;
+
+        for (auto i = 0; i < max_threads; i++)
         {
-            jobs_running++;
-            pool.enqueue([&, i]() noexcept -> void
-                         {
-                             callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
-                             jobs_running--;
-                         }
-            );
+            if (i < (max_threads - 1))
+            {
+                jobs_running++;
+                pool.enqueue([&, i]() noexcept -> void
+                             {
+                                 callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+                                 jobs_running--;
+                             });
+            }
+            else
+            {
+                callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+                while (jobs_running) /*wait for all jobs to finish*/
+                    ;
+            }
         }
-        else
-        {
-            callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
-            while (jobs_running) /*wait for all jobs to finish*/;
-        }
+    }
+    else
+    {
+        callable(0, N);
     }
 }
 
@@ -233,13 +240,7 @@ void Game::Update(float deltaTime)
         }
     };
 
-    if (rockets.size() > 0) {
-        RunParallel(updateRockets, rockets.size());
-    }
-    else
-    {
-        updateRockets(0, rockets.size());
-    }
+    RunParallel(updateRockets, rockets.size());
 
     //Remove exploded rockets with remove erase idiom
     rockets.erase(std::remove_if(rockets.begin(), rockets.end(), [](const Rocket& rocket) { return !rocket.active; }), rockets.end());

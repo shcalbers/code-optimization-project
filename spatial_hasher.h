@@ -20,7 +20,8 @@ public:
     bool tryInsertAt(vec2 position, T gameObject);
     bool tryRemoveAt(vec2 position);
 
-    std::vector<Entry> getObjectsBetween(vec2 lowerbound, vec2 upperbound) const;
+    template <typename Callable_T>
+    void getObjectsBetween(vec2 lowerbound, vec2 upperbound, const Callable_T& callable) const;
 
 private:
    
@@ -86,10 +87,9 @@ bool SpatialHasher<T>::tryRemoveAt(vec2 position)
 }
 
 template<typename T>
-std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetween(vec2 lowerbound, vec2 upperbound) const
+template<typename Callable_T>
+void SpatialHasher<T>::getObjectsBetween(vec2 lowerbound, vec2 upperbound, const Callable_T& callable) const
 {
-    std::vector<Entry> objects;
-
     lowerbound = {max(this->lowerbound.x, lowerbound.x), max(this->lowerbound.y, lowerbound.y)};
     upperbound = {min(this->upperbound.x-1, upperbound.x), min(this->upperbound.y-1, upperbound.y)};
     for (int index = calculateIndex(lowerbound), last_index = calculateIndex({lowerbound.x, upperbound.y}), max_offset = ceil((upperbound.x - lowerbound.x) / cellSize); index <= last_index; index += cols)
@@ -100,12 +100,12 @@ std::vector<typename SpatialHasher<T>::Entry> SpatialHasher<T>::getObjectsBetwee
             for (auto& entry : cells[index + offset])
             {
                 if (pointWithinBounds(entry.position, lowerbound, upperbound))
-                    objects.push_back(entry);
+                    callable(entry);
             }
         }
     }
 
-    return objects;
+    return;
 }
 
 template<typename T>

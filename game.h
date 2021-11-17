@@ -47,7 +47,7 @@ class Game
   private:
 
     static const unsigned int thread_count;
-    ThreadPool pool{thread_count};
+    ThreadPool pool{thread_count-1};
 
     mutex rockets_mutex;
     mutex smokes_mutex;

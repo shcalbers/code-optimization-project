@@ -122,25 +122,32 @@ Tank* Game::FindClosestEnemy(Tank* current_tank)
 template <typename Callable_T>
 void Game::RunParallel(const Callable_T& callable, const int N, const unsigned int max_threads) noexcept
 {
-    std::atomic<int> jobs_running = 0;
-
-    for (auto i = 0; i < max_threads; i++)
+    if (N >= max_threads)
     {
-        if (i < (max_threads-1))
+        std::atomic<int> jobs_running = 0;
+
+        for (auto i = 0; i < max_threads; i++)
         {
-            jobs_running++;
-            pool.enqueue([&, i]() noexcept -> void
-                         {
-                             callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
-                             jobs_running--;
-                         }
-            );
+            if (i < (max_threads - 1))
+            {
+                jobs_running++;
+                pool.enqueue([&, i]() noexcept -> void
+                             {
+                                 callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+                                 jobs_running--;
+                             });
+            }
+            else
+            {
+                callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
+                while (jobs_running) /*wait for all jobs to finish*/
+                    ;
+            }
         }
-        else
-        {
-            callable(float(N) / max_threads * i, float(N) / max_threads * (i + 1));
-            while (jobs_running) /*wait for all jobs to finish*/;
-        }
+    }
+    else
+    {
+        callable(0, N);
     }
 }
 
@@ -162,9 +169,9 @@ void Game::Update(float deltaTime)
 
             if (tank->active)
             {
-                for (auto oTank : tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}))
+                tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}, [&](const SpatialHasher<Tank*>::Entry& oTank) noexcept
                 {
-                    if (tank == oTank.object) continue;
+                    if (tank == oTank.object) return;
 
                     vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
                     float dirSquaredLen = dir.sqrLength();
@@ -175,7 +182,7 @@ void Game::Update(float deltaTime)
                     {
                         tank->Push(dir.normalized(), 1.f);
                     }
-                }
+                });
 
                 //Shoot at closest target if reloaded
                 if (tank->Rocket_Reloaded())
@@ -215,7 +222,7 @@ void Game::Update(float deltaTime)
             rocket.Tick();
 
             //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-            for (auto tank : tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, rocket.position + vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}))
+            tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, rocket.position + vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
             {
                 if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
                 {
@@ -227,19 +234,12 @@ void Game::Update(float deltaTime)
                     }
 
                     rocket.active = false;
-                    break;
                 }
-            }
+            });
         }
     };
 
-    if (rockets.size() > 0) {
-        RunParallel(updateRockets, rockets.size());
-    }
-    else
-    {
-        updateRockets(0, rockets.size());
-    }
+    RunParallel(updateRockets, rockets.size());
 
     //Remove exploded rockets with remove erase idiom
     rockets.erase(std::remove_if(rockets.begin(), rockets.end(), [](const Rocket& rocket) { return !rocket.active; }), rockets.end());
@@ -250,7 +250,7 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        for (auto tank : tanks_hash.getObjectsBetween(particle_beam.rectangle.min-1, particle_beam.rectangle.max+1))
+        tanks_hash.getObjectsBetween(particle_beam.rectangle.min-1, particle_beam.rectangle.max+1, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
         {
             if (tank.object->active && particle_beam.rectangle.intersectsCircle(tank.object->Get_Position(), tank.object->Get_collision_radius()))
             {
@@ -259,7 +259,7 @@ void Game::Update(float deltaTime)
                     smokes.push_back(Smoke(smoke, tank.object->position - vec2(0, 48)));
                 }
             }
-        }
+        });
     }
 
     //Update explosion sprites and remove when done with remove erase idiom

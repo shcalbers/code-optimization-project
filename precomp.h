@@ -88,6 +88,9 @@ using namespace Tmpl8;
 #include "explosion.h"
 #include "particle_beam.h"
 
+#include "boundary.h"
+#include "spatial_hasher.h"
+
 #include "game.h"
 
 // clang-format on

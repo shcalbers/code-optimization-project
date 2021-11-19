@@ -30,6 +30,7 @@
     <ClInclude Include="spatial_hasher.h" />
     <ClInclude Include="tank.h" />
     <ClInclude Include="thread_pool.h" />
+    <ClInclude Include="boundary.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">

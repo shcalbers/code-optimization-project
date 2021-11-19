@@ -1,14 +1,7 @@
 #pragma once
 
-#include "spatial_hasher.h"
-
 namespace Tmpl8
 {
-//forward declarations
-class Tank;
-class Rocket;
-class Smoke;
-class Particle_beam;
 
 class Game
 {
@@ -56,7 +49,7 @@ class Game
     Surface* screen;
 
     vector<Tank*> tanks;
-    SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({0, 0}, {1280, 1700}, 25);
+    SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({{-100, -100}, {1400, 1700}}, 25);
 
     vector<Rocket> rockets;
     vector<Smoke> smokes;

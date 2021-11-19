@@ -46,6 +46,9 @@ const static vec2 rocket_size(25, 24);
 const static float tank_radius = 12.f;
 const static float rocket_radius = 10.f;
 
+const static float tank_vs_tank_radius   = ceil(sqrt(2 * tank_radius * tank_radius));
+const static float tank_vs_rocket_radius = ceil(sqrt(2 * (tank_radius+rocket_radius) * (tank_radius+rocket_radius)));
+
 const unsigned int Game::thread_count = thread::hardware_concurrency();
 
 // -----------------------------------------------------------
@@ -56,6 +59,8 @@ void Game::Init()
     frame_count_font = new Font("assets/digital_small.png", "ABCDEFGHIJKLMNOPQRSTUVWXYZ:?!=-0123456789.");
 
     tanks.reserve(NUM_TANKS_BLUE + NUM_TANKS_RED);
+    rockets.reserve(5000);
+    particle_beams.reserve(3);
 
     uint rows = (uint)sqrt(NUM_TANKS_BLUE + NUM_TANKS_RED);
     uint max_rows = 12;
@@ -162,17 +167,15 @@ void Game::Update(float deltaTime)
 {
     auto updateTanks = [&](int start, int end) noexcept
     {
-        //Update tanks
         for (auto i = start; i < end; i++)
         {
             auto tank = tanks[i];
-
             if (tank->active)
             {
-                tanks_hash.getObjectsBetween(tank->position - vec2{tank->collision_radius + 1, tank->collision_radius + 1}, tank->position + vec2{tank->collision_radius + 1, tank->collision_radius + 1}, [&](const SpatialHasher<Tank*>::Entry& oTank) noexcept
+                tanks_hash.forEachWithinBounds({tank->position, tank_vs_tank_radius}, [&](const SpatialHasher<Tank*>::Entry& oTank) noexcept
                 {
                     if (tank == oTank.object) return;
-
+                    
                     vec2 dir = tank->Get_Position() - oTank.object->Get_Position();
                     float dirSquaredLen = dir.sqrLength();
 
@@ -184,9 +187,14 @@ void Game::Update(float deltaTime)
                     }
                 });
 
-                //Shoot at closest target if reloaded
+                //Move tanks according to speed and nudges (see above) also reload
+                tanks_hash.tryRemoveAt(tank->Get_Position());
+                tank->Tick();
+                tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+
                 if (tank->Rocket_Reloaded())
                 {
+                    //Shoot at closest target if reloaded
                     Tank* target = FindClosestEnemy(tank);
 
                     std::unique_lock<std::mutex>(rockets_mutex), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
@@ -197,15 +205,6 @@ void Game::Update(float deltaTime)
     };
 
     RunParallel(updateTanks, tanks.size());
-
-    for (Tank* tank : tanks) {
-        if (tank->active) {
-            //Move tanks according to speed and nudges (see above) also reload
-            tanks_hash.tryRemoveAt(tank->Get_Position());
-            tank->Tick();
-            tanks_hash.tryInsertAt(tank->Get_Position(), tank);
-        }
-    }
 
     //Update smoke plumes
     for (Smoke& smoke : smokes)
@@ -222,7 +221,7 @@ void Game::Update(float deltaTime)
             rocket.Tick();
 
             //Check if rocket collides with enemy tank, spawn explosion and if tank is destroyed spawn a smoke plume
-            tanks_hash.getObjectsBetween(rocket.position - vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, rocket.position + vec2{rocket.collision_radius + 1, rocket.collision_radius + 1}, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
+            tanks_hash.forEachWithinBounds({rocket.position, tank_vs_rocket_radius}, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
             {
                 if (tank.object->active && (tank.object->allignment != rocket.allignment) && rocket.Intersects(tank.object->position, tank.object->collision_radius))
                 {
@@ -250,7 +249,7 @@ void Game::Update(float deltaTime)
         particle_beam.tick();
 
         //Damage all tanks within the damage window of the beam (the window is an axis-aligned bounding box)
-        tanks_hash.getObjectsBetween(particle_beam.rectangle.min-1, particle_beam.rectangle.max+1, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
+        tanks_hash.forEachWithinBounds({particle_beam.rectangle.min-tank_radius, particle_beam.rectangle.max+tank_radius}, [&](const SpatialHasher<Tank*>::Entry& tank) noexcept
         {
             if (tank.object->active && particle_beam.rectangle.intersectsCircle(tank.object->Get_Position(), tank.object->Get_collision_radius()))
             {

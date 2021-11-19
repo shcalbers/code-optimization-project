@@ -5,14 +5,15 @@ namespace Tmpl8
 
 class Game
 {
+
   public:
+
     void SetTarget(Surface* surface) { screen = surface; }
     void Init();
     void Shutdown();
     void Update(float deltaTime);
     void Draw();
     void Tick(float deltaTime);
-    void insertion_sort_tanks_health(const std::vector<Tank*>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end);
     void MeasurePerformance();
 
     Tank* FindClosestEnemy(Tank* current_tank);
@@ -63,6 +64,10 @@ class Game
 
     template<typename Callable_T>
     void RunParallel(const Callable_T& callable, int N, unsigned int max_threads = thread_count) noexcept;
+
+    void splitmerge_tanks_health_p(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d = 1) noexcept;
+    void splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end) noexcept;
+    void merge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 middle, UINT16 end) noexcept;
 
 };
 

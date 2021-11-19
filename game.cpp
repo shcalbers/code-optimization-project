@@ -310,13 +310,13 @@ void Game::Draw()
     }
 
     //Draw sorted health bars
+    auto copy = tanks; //Copy tanks for mergesort
     for (int t = 0; t < 2; t++)
     {
         const UINT16 NUM_TANKS = ((t < 1) ? NUM_TANKS_BLUE : NUM_TANKS_RED);
 
         const UINT16 begin = ((t < 1) ? 0 : NUM_TANKS_BLUE);
-        std::vector<const Tank*> sorted_tanks;
-        insertion_sort_tanks_health(tanks, sorted_tanks, begin, begin + NUM_TANKS);
+        splitmerge_tanks_health(tanks, copy, begin, begin + NUM_TANKS);
 
         for (int i = 0; i < NUM_TANKS; i++)
         {
@@ -326,39 +326,59 @@ void Game::Draw()
             int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
             screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)sorted_tanks.at(i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(begin+i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
         }
     }
 }
 
-// -----------------------------------------------------------
-// Sort tanks by health value using insertion sort
-// -----------------------------------------------------------
-void Tmpl8::Game::insertion_sort_tanks_health(const std::vector<Tank*>& original, std::vector<const Tank*>& sorted_tanks, UINT16 begin, UINT16 end)
+void Tmpl8::Game::splitmerge_tanks_health_p(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end, int d) noexcept
 {
-    const UINT16 NUM_TANKS = end - begin;
-    sorted_tanks.reserve(NUM_TANKS);
-    sorted_tanks.emplace_back(original.at(begin));
+    if (end - begin <= 1)
+        return;
 
-    for (int i = begin + 1; i < (begin + NUM_TANKS); i++)
+    const auto middle = (end + begin) / 2;
+
+    if (d < thread_count)
     {
-        const Tank* current_tank = original.at(i);
+        auto f = pool.enqueue([&]() noexcept { splitmerge_tanks_health_p(B, A, begin, middle, d * 2); });
+        splitmerge_tanks_health_p(B, A, middle, end, d * 2);
+        f.wait();
+    }
+    else
+    {
+        splitmerge_tanks_health(B, A, begin, middle);
+        splitmerge_tanks_health(B, A, middle, end);
+    }
 
-        for (int s = (int)sorted_tanks.size() - 1; s >= 0; s--)
+    merge_tanks_health(B, A, begin, middle, end);
+}
+
+void Tmpl8::Game::splitmerge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 end) noexcept
+{
+    if (end - begin <= 1)
+        return;
+
+    const auto middle = (end + begin) / 2;
+    splitmerge_tanks_health(B, A, begin, middle);
+    splitmerge_tanks_health(B, A, middle, end);
+
+    merge_tanks_health(B, A, begin, middle, end);
+}
+
+void Tmpl8::Game::merge_tanks_health(std::vector<Tank*>& A, std::vector<Tank*>& B, UINT16 begin, UINT16 middle, UINT16 end) noexcept
+{
+    auto i = begin;
+    auto j = middle;
+
+    for (auto k = begin; k < end; k++)
+    {
+        if (i < middle && (j >= end || A[i]->health <= A[j]->health))
         {
-            const Tank* current_checking_tank = sorted_tanks.at(s);
-
-            if ((current_checking_tank->CompareHealth(*current_tank) <= 0))
-            {
-                sorted_tanks.insert(1 + sorted_tanks.begin() + s, current_tank);
-                break;
-            }
-
-            if (s == 0)
-            {
-                sorted_tanks.insert(sorted_tanks.begin(), current_tank);
-                break;
-            }
+            B[k] = A[i++];
+        }
+        else
+        {
+            B[k] = A[j++];
         }
     }
 }

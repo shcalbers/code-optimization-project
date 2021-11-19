@@ -17,7 +17,7 @@
 #define MAX_FRAMES 2000
 
 //Global performance timer
-#define REF_PERFORMANCE 59024.8 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
+#define REF_PERFORMANCE 11871.4 //UPDATE THIS WITH YOUR REFERENCE PERFORMANCE (see console after 2k frames)
 static timer perf_timer;
 static float duration;
 
@@ -299,10 +299,15 @@ void Game::Draw()
         smoke.Draw(screen);
     }
 
-    for (Particle_beam& particle_beam : particle_beams)
+    auto drawParticleBeams = [&](int start, int end) noexcept
     {
-        particle_beam.Draw(screen);
-    }
+        for (int i = start; i < end; i++)
+        {
+            particle_beams[i].Draw(screen);
+        }
+    };
+
+    RunParallel(drawParticleBeams, particle_beams.size(), 3);
 
     for (Explosion& explosion : explosions)
     {
@@ -318,16 +323,21 @@ void Game::Draw()
         const UINT16 begin = ((t < 1) ? 0 : NUM_TANKS_BLUE);
         splitmerge_tanks_health(tanks, copy, begin, begin + NUM_TANKS);
 
-        for (int i = 0; i < NUM_TANKS; i++)
+        auto drawHealthBar = [&](int start, int end) noexcept
         {
-            int health_bar_start_x = i * (HEALTH_BAR_WIDTH + HEALTH_BAR_SPACING) + HEALTH_BARS_OFFSET_X;
-            int health_bar_start_y = (t < 1) ? 0 : (SCRHEIGHT - HEALTH_BAR_HEIGHT) - 1;
-            int health_bar_end_x = health_bar_start_x + HEALTH_BAR_WIDTH;
-            int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
+            for (int i = start; i < end; i++)
+            {
+                int health_bar_start_x = i * (HEALTH_BAR_WIDTH + HEALTH_BAR_SPACING) + HEALTH_BARS_OFFSET_X;
+                int health_bar_start_y = (t < 1) ? 0 : (SCRHEIGHT - HEALTH_BAR_HEIGHT) - 1;
+                int health_bar_end_x = health_bar_start_x + HEALTH_BAR_WIDTH;
+                int health_bar_end_y = (t < 1) ? HEALTH_BAR_HEIGHT : SCRHEIGHT - 1;
 
-            screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
-            screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(begin+i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
-        }
+                screen->Bar(health_bar_start_x, health_bar_start_y, health_bar_end_x, health_bar_end_y, REDMASK);
+                screen->Bar(health_bar_start_x, health_bar_start_y + (int)((double)HEALTH_BAR_HEIGHT * (1 - ((double)tanks.at(begin + i)->health / (double)TANK_MAX_HEALTH))), health_bar_end_x, health_bar_end_y, GREENMASK);
+            }
+        };
+
+        RunParallel(drawHealthBar, NUM_TANKS);
     }
 }
 

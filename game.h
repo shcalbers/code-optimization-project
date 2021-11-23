@@ -51,6 +51,8 @@ class Game
 
     vector<Tank*> tanks;
     SpatialHasher<Tank*> tanks_hash = SpatialHasher<Tank*>({{-100, -100}, {1400, 1700}}, 25);
+    KDTree red_tree;
+    KDTree blue_tree;
 
     vector<Rocket> rockets;
     vector<Smoke> smokes;

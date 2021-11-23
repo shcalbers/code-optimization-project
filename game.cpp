@@ -88,6 +88,9 @@ void Game::Init()
         tanks_hash.tryInsertAt(tank->Get_Position(), tank);
     }
 
+    blue_tree = KDTree(tanks, 0, NUM_TANKS_BLUE);
+    red_tree = KDTree(tanks, NUM_TANKS_BLUE, NUM_TANKS_BLUE + NUM_TANKS_RED);
+
     particle_beams.push_back(Particle_beam(vec2(SCRWIDTH / 2, SCRHEIGHT / 2), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
     particle_beams.push_back(Particle_beam(vec2(80, 80), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
     particle_beams.push_back(Particle_beam(vec2(1200, 600), vec2(100, 50), &particle_beam_sprite, PARTICLE_BEAM_HIT_VALUE));
@@ -192,19 +195,41 @@ void Game::Update(float deltaTime)
                 tank->Tick();
                 tanks_hash.tryInsertAt(tank->Get_Position(), tank);
 
-                if (tank->Rocket_Reloaded())
-                {
-                    //Shoot at closest target if reloaded
-                    Tank* target = FindClosestEnemy(tank);
+                //if (tank->Rocket_Reloaded())
+                //{
+                //    //Shoot at closest target if reloaded
+                //    Tank* target = FindClosestEnemy(tank);
 
-                    std::unique_lock<std::mutex>(rockets_mutex), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
-                    tank->Reload_Rocket();
-                }
+                //    std::unique_lock<std::mutex>(rockets_mutex), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
+                //    tank->Reload_Rocket();
+                //}
             }
         }
     };
 
     RunParallel(updateTanks, tanks.size());
+
+    bool trees_rebuild = false;
+    for (int i = 0; i < tanks.size(); i++)
+    {
+        auto tank = tanks[i];
+
+        if (tank->active && tank->Rocket_Reloaded())
+        {
+            if (trees_rebuild == false)
+            {
+                blue_tree.rebuild();
+                red_tree.rebuild();
+                trees_rebuild = true;
+            }
+
+            //Shoot at closest target if reloaded
+            //Tank* target = FindClosestEnemy(tank);
+            auto target = tank->allignment == BLUE ? red_tree.findNearestNeighbour(tank->position) : blue_tree.findNearestNeighbour(tank->position);
+            rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
+            tank->Reload_Rocket();
+        }
+    }
 
     //Update smoke plumes
     for (Smoke& smoke : smokes)

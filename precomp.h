@@ -91,6 +91,8 @@ using namespace Tmpl8;
 #include "boundary.h"
 #include "spatial_hasher.h"
 
+#include "kd_tree.h"
+
 #include "game.h"
 
 // clang-format on

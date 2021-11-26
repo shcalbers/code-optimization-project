@@ -188,9 +188,12 @@ void Game::Update(float deltaTime)
                 });
 
                 //Move tanks according to speed and nudges (see above) also reload
-                tanks_hash.tryRemoveAt(tank->Get_Position());
+                //tanks_hash.tryRemoveAt(tank->Get_Position());
+                //tank->Tick();
+                //tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+                const auto old_position = tank->Get_Position();
                 tank->Tick();
-                tanks_hash.tryInsertAt(tank->Get_Position(), tank);
+                tanks_hash.tryUpdateAt(old_position, tank->Get_Position(), tank);
 
                 if (tank->Rocket_Reloaded())
                 {

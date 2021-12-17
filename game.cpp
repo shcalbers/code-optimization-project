@@ -190,22 +190,9 @@ void Game::Update(float deltaTime)
                     }
                 });
 
-                //Move tanks according to speed and nudges (see above) also reload
-                //tanks_hash.tryRemoveAt(tank->Get_Position());
-                //tank->Tick();
-                //tanks_hash.tryInsertAt(tank->Get_Position(), tank);
                 const auto old_position = tank->Get_Position();
                 tank->Tick();
                 tanks_hash.tryUpdateAt(old_position, tank->Get_Position(), tank);
-
-                //if (tank->Rocket_Reloaded())
-                //{
-                //    //Shoot at closest target if reloaded
-                //    Tank* target = FindClosestEnemy(tank);
-
-                //    std::unique_lock<std::mutex>(rockets_mutex), rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
-                //    tank->Reload_Rocket();
-                //}
             }
         }
     };
@@ -217,6 +204,7 @@ void Game::Update(float deltaTime)
     {
         auto tank = tanks[i];
 
+        //Shoot at closest target if reloaded
         if (tank->active && tank->Rocket_Reloaded())
         {
             if (trees_rebuild == false)
@@ -226,8 +214,6 @@ void Game::Update(float deltaTime)
                 trees_rebuild = true;
             }
 
-            //Shoot at closest target if reloaded
-            //Tank* target = FindClosestEnemy(tank);
             auto target = tank->allignment == BLUE ? red_tree.findNearestNeighbour(tank->position) : blue_tree.findNearestNeighbour(tank->position);
             rockets.push_back(Rocket(tank->position, (target->Get_Position() - tank->position).normalized() * 3, rocket_radius, tank->allignment, ((tank->allignment == RED) ? &rocket_red : &rocket_blue)));
             tank->Reload_Rocket();
